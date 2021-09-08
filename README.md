@@ -1,43 +1,24 @@
 ## 📦 Minipack
 
-> A simplified example of a modern module bundler written in JavaScript
+> 现代JS模块打包器的简易实现、详细教学
 
-### Introduction
+本仓库基于原版[minipack](https://github.com/ronami/minipack)修改，改动如下：
 
-As front-end developers, we spend a lot of time working with tools like [Webpack](https://github.com/webpack/webpack), [Browserify](https://github.com/browserify/browserify), and [Parcel](https://github.com/parcel-bundler/parcel).
+- 升级了依赖的`babel`版本
 
-Understanding how those tools work can help us make better decisions on how we write our code. By understanding how our code turns into a bundle and how that bundle looks like we can also debug it better.
+- 全中文注释
 
-The purpose of this project is to explain how most bundlers work under the hood. It contains a short implementation of a simplified but still reasonably accurate bundler. Along with the code, there are comments explaining what the code is trying to achieve.
+- 增加了一些辅助调试的代码
 
-### Cool, where do I start?
+如果你喜欢这个教学，请给[原作者仓库](https://github.com/ronami/minipack)一个`star`吧
 
-Head on to the source code: [src/minipack.js](src/minipack.js).
+## 使用
 
-### Try running the code
-
-Start by installing dependencies:
-
-```sh
-$ npm install
+```shell
+# 按照依赖
+npm install;
+# 运行打包脚本
+npm run build
 ```
 
-And then run our script:
-
-```sh
-$ node src/minipack.js
-```
-
-### Additional links
-
-- [AST Explorer](https://astexplorer.net)
-- [Babel REPL](https://babeljs.io/repl)
-- [Babylon](https://github.com/babel/babel/tree/master/packages/babel-parser)
-- [Babel Plugin Handbook](https://github.com/thejameskyle/babel-handbook/blob/master/translations/en/plugin-handbook.md)
-- [Webpack: Modules](https://webpack.js.org/concepts/modules)
-
-### Read this in other languages
-
-- [한글/Korean](https://github.com/hg-pyun/minipack-kr)
-- [中文/Chinese](https://github.com/chinanf-boy/minipack-explain)
-- [Русский/Russian](https://github.com/makewebme/build-your-own-webpack)
+打开`src/minipack.js`学习

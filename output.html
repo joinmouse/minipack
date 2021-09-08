@@ -1,0 +1,123 @@
+
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta http-equiv="X-UA-Compatible" content="IE=edge">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Document</title>
+    </head>
+    <body></body>
+    <script>
+    (function(modules) {
+      function require(id) {
+        const [fn, mapping] = modules[id];
+
+        function localRequire(name) {
+          return require(mapping[name]);
+        }
+
+        const module = { exports : {} };
+
+        fn(localRequire, module, module.exports);
+
+        return module.exports;
+      }
+
+      require(0);
+    })({0: [
+      function (require, module, exports) {
+        "use strict";
+
+var _b = _interopRequireDefault(require("./b.js"));
+
+var _c = require("./c.js");
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
+
+console.log(_b["default"]);
+console.log(_c.name);
+      },
+      {"./b.js":1,"./c.js":2},
+    ],1: [
+      function (require, module, exports) {
+        "use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports["default"] = void 0;
+
+var _d = _interopRequireDefault(require("./d.js"));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
+
+var _default = "hello ".concat(_d["default"], "!");
+
+exports["default"] = _default;
+      },
+      {"./d.js":3},
+    ],2: [
+      function (require, module, exports) {
+        "use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.name = void 0;
+var name = 'i am c';
+exports.name = name;
+      },
+      {},
+    ],3: [
+      function (require, module, exports) {
+        "use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports["default"] = void 0;
+
+var _e = require("./e.js");
+
+var _f = _interopRequireDefault(require("./f.js"));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
+
+var _default = "count is: ".concat((0, _f["default"])(_e.num1, _e.num2));
+
+exports["default"] = _default;
+      },
+      {"./e.js":4,"./f.js":5},
+    ],4: [
+      function (require, module, exports) {
+        "use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.num2 = exports.num1 = void 0;
+var num1 = 1;
+exports.num1 = num1;
+var num2 = 2;
+exports.num2 = num2;
+      },
+      {},
+    ],5: [
+      function (require, module, exports) {
+        "use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports["default"] = add;
+
+function add(a, b) {
+  return a + b;
+}
+      },
+      {},
+    ],})
+  </script>
+    </html>  
+  

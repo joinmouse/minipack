@@ -1,224 +1,196 @@
 /**
- * Module bundlers compile small pieces of code into something larger and more
- * complex that can run in a web browser. These small pieces are just JavaScript
- * files, and dependencies between them are expressed by a module system
+ * 模块打包器将很多小的代码模块组合在一起并转换为现代浏览器能识别的形式
+ * 这些小的代码模块就是普通的 js 文件，他们通过“模块系统”形成依赖关系
  * (https://webpack.js.org/concepts/modules).
  *
- * Module bundlers have this concept of an entry file. Instead of adding a few
- * script tags in the browser and letting them run, we let the bundler know
- * which file is the main file of our application. This is the file that should
- * bootstrap our entire application.
+ * 模块打包器有“入口文件”的概念，区别于在浏览器中引入多个 <script> 标签作为入口文件，
+ * 模块打包器以一个入口文件为起点，引导完成整个应用的打包
  *
- * Our bundler will start from that entry file, and it will try to understand
- * which files it depends on. Then, it will try to understand which files its
- * dependencies depend on. It will keep doing that until it figures out about
- * every module in our application, and how they depend on one another.
+ * 他会从入口文件开始寻找该文件依赖的文件，并继续寻找 依赖文件 依赖的文件。
+ * 这个过程会持续到打包器分析完应用中所有文件的依赖关系为止。
  *
- * This understanding of a project is called the dependency graph.
+ * 这种以“文件间相互依赖的关系”视角描述项目的方式被称为“依赖图”
  *
- * In this example, we will create a dependency graph and use it to package
- * all of its modules in one bundle.
+ * 我们的打包器会首先建立依赖图，并基于其将所有模块打包为一个模块
  *
- * Let's begin :)
+ * 让我们开始吧 :)
  *
- * Please note: This is a very simplified example. Handling cases such as
- * circular dependencies, caching module exports, parsing each module just once
- * and others are skipped to make this example as simple as possible.
+ * 请注意：为了保证示例尽可能简单，很多功能（或问题）我们没有实现（或解决），比如：
+ *  循环依赖
+ *  模块导出的缓存
+ *  每个模块只解析一次
  */
 
-const fs = require('fs');
-const path = require('path');
-const babylon = require('babylon');
-const traverse = require('babel-traverse').default;
-const {transformFromAst} = require('babel-core');
+import fs from 'fs';
+import path from 'path';
+
+import babel from '@babel/core';
+import createHTML from './createHTML.js';
 
 let ID = 0;
 
-// We start by creating a function that will accept a path to a file, read
-// its contents, and extract its dependencies.
+// 我们首先创建一个函数，他接收一个文件路径作为参数
+// 读取文件内容，并解析他的依赖
 function createAsset(filename) {
-  // Read the content of the file as a string.
+  // 将文件内容读取为字符串
   const content = fs.readFileSync(filename, 'utf-8');
 
-  // Now we try to figure out which files this file depends on. We can do that
-  // by looking at its content for import strings. However, this is a pretty
-  // clunky approach, so instead, we will use a JavaScript parser.
-  //
-  // JavaScript parsers are tools that can read and understand JavaScript code.
-  // They generate a more abstract model called an AST (abstract syntax tree).
+  // 接下来我们尝试找出该文件依赖的文件，可以通过读取文件内的 import 关键词来完成。
+  // 在示例中，我们用 babel 完成这项工作
 
-  // I strongly suggest that you look at AST Explorer (https://astexplorer.net)
-  // to see how an AST looks like.
-  //
-  // The AST contains a lot of information about our code. We can query it to
-  // understand what our code is trying to do.
-  const ast = babylon.parse(content, {
+  // 作为JS解析器，babel 可以将 js 代码解析为一种被称为 AST（abstract syntax tree） 的抽象结构
+
+  // 我强烈建议你在 AST Explorer (https://astexplorer.net)看看 AST 究竟长什么样
+
+  // 在这里我们指明：我们的代码采用 ESM(EcmaScript modules) 模块系统，babel 会基于 ESM 的语法寻找文件的依赖关系
+  const ast = babel.parseSync(content, {
     sourceType: 'module',
   });
 
-  // This array will hold the relative paths of modules this module depends on.
+  // 在该数组中保存当前模块依赖的模块的相对路径
+  // 比如，当前模块中包含语法： import a from '../a.js';
+  // 则 '../a.js' 会保存在该数组中
   const dependencies = [];
 
-  // We traverse the AST to try and understand which modules this module depends
-  // on. To do that, we check every import declaration in the AST.
-  traverse(ast, {
-    // EcmaScript modules are fairly easy because they are static. This means
-    // that you can't import a variable, or conditionally import another module.
-    // Every time we see an import statement we can just count its value as a
-    // dependency.
+  // 使用 babel 提供的 traverse 方法遍历 AST并分析当前模块依赖的模块
+  // 具体方法是：我们检查 AST 中每个 import 声明语句
+  babel.traverse(ast, {
+    // 由于 ESM 是静态的，所以要分析他很容易
+    // “静态”意味着你不能引入一个变量，也不能根据条件引入其他模块
+    // 每当我们看到一个 import 声明，就将他的值记录下来作为依赖
     ImportDeclaration: ({node}) => {
-      // We push the value that we import into the dependencies array.
+      // 将 import 的值存入 dependencies 数组中
       dependencies.push(node.source.value);
     },
   });
 
-  // We also assign a unique identifier to this module by incrementing a simple
-  // counter.
+  // 我们使用一个自增的数字作为每个模块的唯一ID
   const id = ID++;
 
-  // We use EcmaScript modules and other JavaScript features that may not be
-  // supported on all browsers. To make sure our bundle runs in all browsers we
-  // will transpile it with Babel (see https://babeljs.io).
-  //
-  // The `presets` option is a set of rules that tell Babel how to transpile
-  // our code. We use `babel-preset-env` to transpile our code to something
-  // that most browsers can run.
-  const {code} = transformFromAst(ast, null, {
-    presets: ['env'],
+  // 由于现代浏览器不一定支持我们使用的 ESM 或其他 JS 特性，所以为了让打包后的代码能在浏览器中运行
+  // 我们要转换以下目标代码（详情见 https://babeljs.io）
+
+  // presets 选型包含了一批代码转换规则，经过转换，大部分浏览器能识别我们打包后的代码
+  const {code} = babel.transformFromAstSync(ast, null, {
+    presets: ['@babel/preset-env'],
   });
 
-  // Return all information about this module.
+  // 返回该模块的所有信息
   return {
+    // 模块唯一ID
     id,
+    // 模块所在文件路径
     filename,
+    // 依赖的模块的相对路径
     dependencies,
+    // 转换后的代码
+    // 注意：转换后的代码是 CJS 模块系统的，为了运行这种模块系统的代码，下面我们会特殊处理
     code,
   };
 }
 
-// Now that we can extract the dependencies of a single module, we are going to
-// start by extracting the dependencies of the entry file.
-//
-// Then, we are going to extract the dependencies of every one of its
-// dependencies. We will keep that going until we figure out about every module
-// in the application and how they depend on one another. This understanding of
-// a project is called the dependency graph.
+// 现在，我们已经可以解析一个模块的依赖关系了，让我们从入口文件开始解析
+
+// 接下来，我们会解析每个依赖的依赖，这个过程会持续到解析完整个应用的依赖
+// 最终会形成依赖图
 function createGraph(entry) {
-  // Start by parsing the entry file.
+  // 从入口文件开始解析
+  // 我们将“解析完的模块”称为“资源”
   const mainAsset = createAsset(entry);
 
-  // We're going to use a queue to parse the dependencies of every asset. To do
-  // that we are defining an array with just the entry asset.
+  // 用队列保存整个应用的所有资源
   const queue = [mainAsset];
 
-  // We use a `for ... of` loop to iterate over the queue. Initially the queue
-  // only has one asset but as we iterate it we will push additional new assets
-  // into the queue. This loop will terminate when the queue is empty.
+  // 通过 `for ... of` 遍历队列，最开始只有一个资源，但我们会分析他的依赖，
+  // 将依赖解析为资源后会 push 到队列
   for (const asset of queue) {
-    // Every one of our assets has a list of relative paths to the modules it
-    // depends on. We are going to iterate over them, parse them with our
-    // `createAsset()` function, and track the dependencies this module has in
-    // this object.
+    // queue只是所有资源形成的队列，他不保存资源之间的依赖关系
+    // 所以在每个资源中通过 `mapping` 字段建立该资源与其依赖的资源间的联系
     asset.mapping = {};
 
-    // This is the directory this module is in.
+    // 当前资源所在文件路径
     const dirname = path.dirname(asset.filename);
 
-    // We iterate over the list of relative paths to its dependencies.
+    // 遍历资源依赖的模块的相对路径
     asset.dependencies.forEach(relativePath => {
-      // Our `createAsset()` function expects an absolute filename. The
-      // dependencies array is an array of relative paths. These paths are
-      // relative to the file that imported them. We can turn the relative path
-      // into an absolute one by joining it with the path to the directory of
-      // the parent asset.
+      // 我们的 `createAsset()` 方法传参是文件的绝对路径，而 dependencies 数组中保存的是相对路径
+      // 所以需要将其先转化为绝对路径
       const absolutePath = path.join(dirname, relativePath);
 
-      // Parse the asset, read its content, and extract its dependencies.
+      // 解析当前资源依赖的资源
       const child = createAsset(absolutePath);
 
-      // It's essential for us to know that `asset` depends on `child`. We
-      // express that relationship by adding a new property to the `mapping`
-      // object with the id of the child.
+      // 需要明确， child 是当前资源依赖的资源。
+      // 通过在当前资源下增加 `mapping` 字段来表达 child 与 当前资源之间的依赖关系
       asset.mapping[relativePath] = child.id;
 
-      // Finally, we push the child asset into the queue so its dependencies
-      // will also be iterated over and parsed.
+      // 最后，将 child push进队列，这会继续解析 child 依赖的资源
       queue.push(child);
     });
   }
 
-  // At this point the queue is just an array with every module in the target
-  // application: This is how we represent our graph.
+  // 最终， queue 中保存应用中所有有依赖关系的资源，我们称该队列为依赖图
   return queue;
 }
 
-// Next, we define a function that will use our graph and return a bundle that
-// we can run in the browser.
-//
-// Our bundle will have just one self-invoking function:
-//
+// 接下来，定义个函数，他接收依赖图，返回浏览器可以使用的打包好的代码
+
+// 打包好的代码会包含在一个自执行函数中：
+
 // (function() {})()
-//
-// That function will receive just one parameter: An object with information
-// about every module in our graph.
+
+// 自执行函数接收一个对象作为参数，对象的结构如下：
+// {
+//   资源1 ID: [资源1的代码, 依赖的资源与其ID的对应关系],
+//   资源2 ID: [资源2的代码, 依赖的资源与其ID的对应关系],
+//   ...
+// }
+
 function bundle(graph) {
+  // 注意观察下面 modules 的使用方式，他被 ({}) 包裹，
+  // 所以 modules 实际内容是对象的 `key: value,` 形式，结构如下：
+  //  资源ID: [资源的代码, 依赖的资源与其ID的对应关系],
   let modules = '';
 
-  // Before we get to the body of that function, we'll construct the object that
-  // we'll pass to it as a parameter. Please note that this string that we're
-  // building gets wrapped by two curly braces ({}) so for every module, we add
-  // a string of this format: `key: value,`.
-  graph.forEach(mod => {
-    // Every module in the graph has an entry in this object. We use the
-    // module's id as the key and an array for the value (we have 2 values for
-    // every module).
-    //
-    // The first value is the code of each module wrapped with a function. This
-    // is because modules should be scoped: Defining a variable in one module
-    // shouldn't affect others or the global scope.
-    //
-    // Our modules, after we transpiled them, use the CommonJS module system:
-    // They expect a `require`, a `module` and an `exports` objects to be
-    // available. Those are not normally available in the browser so we'll
-    // implement them and inject them into our function wrappers.
-    //
-    // For the second value, we stringify the mapping between a module and its
-    // dependencies. This is an object that looks like this:
-    // { './relative/path': 1 }.
-    //
-    // This is because the transpiled code of our modules has calls to
-    // `require()` with relative paths. When this function is called, we should
-    // be able to know which module in the graph corresponds to that relative
-    // path for this module.
-    modules += `${mod.id}: [
+  graph.forEach(asset => {
+    // 每遍历一次会为 modules 增加一段 `资源ID: [资源的代码, 依赖的资源与其ID的对应关系],` 结构
+
+    // 可以看到，`资源的代码` 被包裹在 `function (require, module, exports) {}` 中
+    // 这是因为每个模块的代码应该拥有自己的作用域，模块1内的变量不应该影响模块2
+    // 包裹函数有3个传参是因为调用 `babel.transformFromAstSync` 导出的代码是遵循 CJS 模块系统的
+    // 比如：
+    //  import a from './a.js';
+    // 经过导出后会变为：
+    //  require('./a.js')
+    // 所以我们需要将 require 作为函数传参，同理另外两个传参
+
+    // 对于 `依赖的资源与其ID的对应关系`，即 asset.mapping，结构类似：
+    //  { './a.js': 1 }
+
+    // 可以看到，上面例子中导出代码 `require('./a.js')`
+    // 这里的 './a.js' 就能在 `{ './a.js': 1 }` 中找到该资源对应ID（即 1）
+    // 通过 1 就能在 modules 中找到这个资源的代码及相应依赖：
+    //  `1: [资源1的代码, 依赖的资源与其ID的对应关系],`
+    modules += `${asset.id}: [
       function (require, module, exports) {
-        ${mod.code}
+        ${asset.code}
       },
-      ${JSON.stringify(mod.mapping)},
+      ${JSON.stringify(asset.mapping)},
     ],`;
   });
 
-  // Finally, we implement the body of the self-invoking function.
-  //
-  // We start by creating a `require()` function: It accepts a module id and
-  // looks for it in the `modules` object we constructed previously. We
-  // destructure over the two-value array to get our function wrapper and the
-  // mapping object.
-  //
-  // The code of our modules has calls to `require()` with relative file paths
-  // instead of module ids. Our require function expects module ids. Also, two
-  // modules might `require()` the same relative path but mean two different
-  // modules.
-  //
-  // To handle that, when a module is required we create a new, dedicated
-  // `require` function for it to use. It will be specific to that module and
-  // will know to turn its relative paths into ids by using the module's
-  // mapping object. The mapping object is exactly that, a mapping between
-  // relative paths and module ids for that specific module.
-  //
-  // Lastly, with CommonJs, when a module is required, it can expose values by
-  // mutating its `exports` object. The `exports` object, after it has been
-  // changed by the module's code, is returned from the `require()` function.
+  // 最后，实现自执行函数的内部代码
+
+  // 首先实现 `require()` 函数，该函数内部会执行 `资源的代码`
+  // 刚才说过，`资源的代码` 会被导出为 CJS 格式，所以需要实现 require 函数用于引入依赖的资源对应的 `资源的代码`
+  // 同时，当前 `资源的代码` 可能会有导出的数据，所以需要创建保存导出数据的对象 module
+  // 总结下，require 函数内部会做3件事：
+  //  1. 创建 module 对象， const module = { exports : {} };
+  //  2. 实现 require 方法
+  //  3. 调用 `资源的代码`，并将 require、module、module.exports 作为参数传入
+  //  4. 返回 module.exports
+
+  // 在自执行函数的最后，调用 require(0)，开始执行 ID 为 0（即入口资源）的 `资源的代码`
   const result = `
     (function(modules) {
       function require(id) {
@@ -239,11 +211,11 @@ function bundle(graph) {
     })({${modules}})
   `;
 
-  // We simply return the result, hurray! :)
   return result;
 }
 
-const graph = createGraph('./example/entry.js');
+const graph = createGraph('./example/a.js');
 const result = bundle(graph);
 
-console.log(result);
+// 在浏览器中打开 output.html 运行打包后的代码
+createHTML('./output.html', result);
