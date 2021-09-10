@@ -14,8 +14,6 @@
 
 ## 使用
 
-[图文教学地址](https://mp.weixin.qq.com/s?__biz=MzkzMjIxNTcyMA==&mid=2247488063&idx=1&sn=bc47f3f0d85a935aa44411a8dd366f41&chksm=c25e7cf8f529f5ee35e15519e935925e4d9f66bb4424fc958e8bf8b87c9802c7399bb9cc1f7c&token=2111840615&lang=zh_CN#rd)
-
 ```shell
 # 按照依赖
 npm install;
@@ -24,3 +22,7 @@ npm run build
 ```
 
 打开`src/minipack.js`学习
+
+## 参考
+
+[图文教学地址](https://mp.weixin.qq.com/s?__biz=MzkzMjIxNTcyMA==&mid=2247488063&idx=1&sn=bc47f3f0d85a935aa44411a8dd366f41&chksm=c25e7cf8f529f5ee35e15519e935925e4d9f66bb4424fc958e8bf8b87c9802c7399bb9cc1f7c&token=2111840615&lang=zh_CN#rd)
